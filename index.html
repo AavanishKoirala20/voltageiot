@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>3-Phase Monitor</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+      background: #0b1220;
+      color: #e6eef8;
+      margin: 20px;
+      padding: 30px;
+    }
+    h1 {
+      text-align: center;
+      margin-bottom: 30px;
+    }
+    .metrics {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-around;
+      margin-bottom: 30px;
+      gap: 15px;
+    }
+    .metric {
+      background: #111c33;
+      padding: 20px;
+      border-radius: 10px;
+      text-align: center;
+      flex: 1 1 25%;
+      min-width: 220px;
+      margin: 10px;
+    }
+    .metric h2 {
+      margin: 0;
+      font-size: 18px;
+      color: #60a5fa;
+    }
+    .metric p {
+      margin: 8px 0 0;
+      font-size: 22px;
+    }
+    .sensor-section, .relay-section {
+      display: flex;
+      justify-content: space-around;
+      gap: 20px;
+      margin-top: 20px;
+      margin-bottom: 30px;
+      padding: 10px 0;
+    }
+    .sensor-group, .relay-group {
+      background: #0f1a2f;
+      padding: 15px;
+      border-radius: 10px;
+      width: 45%;
+      box-shadow: 0 0 8px rgba(0,0,0,0.4);
+    }
+    .sensor-group h3, .relay-group h3 {
+      text-align: center;
+      color: #34d399;
+      margin: 0 0 15px;
+    }
+    .sensor-item, .relay-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 6px 0;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+    }
+    .status-on {
+      color: #34d399;
+      font-weight: 600;
+    }
+    .status-off {
+      color: #fb7185;
+      font-weight: 600;
+    }
+    .relay-button {
+      padding: 5px 12px;
+      background: #1d4ed8;
+      color: #fff;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-weight: 600;
+    }
+    .relay-button.off {
+      background: #991b1b;
+    }
+    .relay-button:hover {
+      opacity: 0.8;
+    }
+    canvas {
+      background: #111c33;
+      border-radius: 10px;
+      padding: 15px;
+      margin: 25px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 14px;
+      margin-top: 25px;
+    }
+    th, td {
+      padding: 10px;
+      border-bottom: 1px solid rgba(255,255,255,0.1);
+      text-align: center;
+    }
+    th {
+      color: #60a5fa;
+    }
+  </style>
+</head>
+<body>
+  <h1>3‑Phase Voltage & Current Monitor</h1>
+  <div class="metrics">
+    <div class="metric"><h2>Voltage (V)</h2><p id="voltages">—</p></div>
+    <div class="metric"><h2>Current (A)</h2><p id="currents">—</p></div>
+    <div class="metric"><h2>VUF (%)</h2><p id="vuf">—</p></div>
+  </div>
+
+  <div class="sensor-section">
+    <div class="sensor-group">
+      <h3>Voltage Sensors</h3>
+      <div class="sensor-item">V Sensor R: <span id="vSensR" class="status-on">ON</span></div>
+      <div class="sensor-item">V Sensor Y: <span id="vSensY" class="status-on">ON</span></div>
+      <div class="sensor-item">V Sensor B: <span id="vSensB" class="status-on">ON</span></div>
+    </div>
+    <div class="sensor-group">
+      <h3>Current Sensors</h3>
+      <div class="sensor-item">I Sensor R: <span id="iSensR" class="status-on">ON</span></div>
+      <div class="sensor-item">I Sensor Y: <span id="iSensY" class="status-on">ON</span></div>
+      <div class="sensor-item">I Sensor B: <span id="iSensB" class="status-on">ON</span></div>
+    </div>
+  </div>
+
+  <div class="relay-section">
+    <div class="relay-group">
+      <h3>Manual Relay Control</h3>
+      <div class="relay-item">Relay 1 <button class="relay-button" id="relay1">ON</button></div>
+      <div class="relay-item">Relay 2 <button class="relay-button" id="relay2">ON</button></div>
+      <div class="relay-item">Relay 3 <button class="relay-button" id="relay3">ON</button></div>
+      <div class="relay-item">Relay 4 <button class="relay-button" id="relay4">ON</button></div>
+      <div class="relay-item">Relay 5 <button class="relay-button" id="relay5">ON</button></div>
+      <div class="relay-item">Relay 6 <button class="relay-button" id="relay6">ON</button></div>
+    </div>
+  </div>
+
+  <canvas id="voltageChart" height="120"></canvas>
+  <canvas id="currentChart" height="120"></canvas>
+  <table>
+    <thead>
+      <tr><th>Timestamp</th><th>V(R)</th><th>V(Y)</th><th>V(B)</th><th>I(R)</th><th>I(Y)</th><th>I(B)</th><th>VUF</th></tr>
+    </thead>
+    <tbody id="tableBody"></tbody>
+  </table>
+  <script>
+    const vCtx=document.getElementById('voltageChart').getContext('2d');
+    const iCtx=document.getElementById('currentChart').getContext('2d');
+    const tableBody=document.getElementById('tableBody');
+    const voltText=document.getElementById('voltages');
+    const currText=document.getElementById('currents');
+    const vufText=document.getElementById('vuf');
+
+    const MAX_POINTS=40;
+
+    const vChart=new Chart(vCtx,{type:'line',data:{labels:[],datasets:[{label:'V(R)',data:[],borderColor:'#60a5fa',tension:.3},{label:'V(Y)',data:[],borderColor:'#34d399',tension:.3},{label:'V(B)',data:[],borderColor:'#fb7185',tension:.3}]},options:{animation:false,plugins:{legend:{labels:{color:'#e6eef8'}}},scales:{x:{ticks:{color:'#e6eef8'}},y:{ticks:{color:'#e6eef8'}}}}});
+    const iChart=new Chart(iCtx,{type:'line',data:{labels:[],datasets:[{label:'I(R)',data:[],borderColor:'#60a5fa',tension:.3},{label:'I(Y)',data:[],borderColor:'#34d399',tension:.3},{label:'I(B)',data:[],borderColor:'#fb7185',tension:.3}]},options:{animation:false,plugins:{legend:{labels:{color:'#e6eef8'}}},scales:{x:{ticks:{color:'#e6eef8'}},y:{ticks:{color:'#e6eef8'}}}}});
+
+    function calcVUF(vR,vY,vB){
+      const avg=(vR+vY+vB)/3;
+      const diff=Math.sqrt(((vR-avg)**2+(vY-avg)**2+(vB-avg)**2)/3);
+      return (diff/avg)*100;
+    }
+
+    function randomOnOff(){return Math.random()>0.1?'ON':'OFF';}
+
+    function addData(){
+      const now=new Date();
+      const ts=now.toLocaleTimeString();
+
+      const vR=230+(Math.random()*6-3);
+      const vY=231+(Math.random()*6-3);
+      const vB=229+(Math.random()*6-3);
+      const iR=4+(Math.random()*0.6-0.3);
+      const iY=4+(Math.random()*0.6-0.3);
+      const iB=4+(Math.random()*0.6-0.3);
+
+      const vuf=calcVUF(vR,vY,vB);
+
+      vChart.data.labels.push(ts);
+      iChart.data.labels.push(ts);
+      vChart.data.datasets[0].data.push(vR);
+      vChart.data.datasets[1].data.push(vY);
+      vChart.data.datasets[2].data.push(vB);
+      iChart.data.datasets[0].data.push(iR);
+      iChart.data.datasets[1].data.push(iY);
+      iChart.data.datasets[2].data.push(iB);
+
+      if(vChart.data.labels.length>MAX_POINTS){
+        vChart.data.labels.shift();
+        vChart.data.datasets.forEach(d=>d.data.shift());
+        iChart.data.labels.shift();
+        iChart.data.datasets.forEach(d=>d.data.shift());
+      }
+      vChart.update();
+      iChart.update();
+
+      voltText.textContent=`R:${vR.toFixed(1)} Y:${vY.toFixed(1)} B:${vB.toFixed(1)}`;
+      currText.textContent=`R:${iR.toFixed(2)} Y:${iY.toFixed(2)} B:${iB.toFixed(2)}`;
+      vufText.textContent=vuf.toFixed(2);
+
+      const sensors=[
+        {id:'vSensR',status:randomOnOff()},
+        {id:'vSensY',status:randomOnOff()},
+        {id:'vSensB',status:randomOnOff()},
+        {id:'iSensR',status:randomOnOff()},
+        {id:'iSensY',status:randomOnOff()},
+        {id:'iSensB',status:randomOnOff()}
+      ];
+
+      sensors.forEach(s=>{
+        const el=document.getElementById(s.id);
+        el.textContent=s.status;
+        el.className=s.status==='ON'?'status-on':'status-off';
+      });
+
+      const tr=document.createElement('tr');
+      tr.innerHTML=`<td>${ts}</td><td>${vR.toFixed(1)}</td><td>${vY.toFixed(1)}</td><td>${vB.toFixed(1)}</td><td>${iR.toFixed(2)}</td><td>${iY.toFixed(2)}</td><td>${iB.toFixed(2)}</td><td>${vuf.toFixed(2)}</td>`;
+      tableBody.prepend(tr);
+    }
+
+    setInterval(addData,1500);
+
+    // Relay control toggle demo
+    for(let i=1;i<=6;i++){
+      const btn=document.getElementById(`relay${i}`);
+      btn.addEventListener('click',()=>{
+        btn.classList.toggle('off');
+        btn.textContent=btn.classList.contains('off')?'OFF':'ON';
+      });
+    }
+  </script>
+</body>
+</html>
